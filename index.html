@@ -1,425 +1,613 @@
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Terminal do Aluno - EEMTI Dragão do Mar</title>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <style>
-        :root {
-            --primary: #2563eb;
-            --primary-light: #60a5fa;
-            --accent: #10b981;
-            --danger: #ef4444;
-            --bg-dark: #0f172a;
-            --card-bg: rgba(30, 41, 59, 0.7);
-            --border: rgba(255, 255, 255, 0.1);
-            --text-main: #f8fafc;
-            --text-dim: #94a3b8;
-        }
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
-            font-family: 'Inter', system-ui, sans-serif;
-            background: radial-gradient(circle at top right, #1e293b, #0f172a);
-            color: var(--text-main);
-            height: 100vh;
-            overflow: hidden;
-        }
-        .topo {
-            position: fixed; top: 0; width: 100%; height: 95px;
-            background: rgba(15, 23, 42, 0.9);
-            backdrop-filter: blur(12px);
-            padding: 0 20px;
-            display: flex; justify-content: space-between; align-items: center;
-            z-index: 2000; border-bottom: 1px solid var(--border);
-        }
-        .esquerda { display: flex; gap: 15px; align-items: center; flex: 1; }
-        .logo { height: 60px; width: 60px; border-radius: 12px; border: 2px solid var(--border); }
-        #painelAluno {
-            background: var(--card-bg);
-            padding: 8px 15px;
-            border-radius: 14px;
-            border: 1px solid var(--border);
-            display: grid;
-            grid-template-columns: repeat(7, auto);
-            gap: 8px 20px;
-            font-size: 11px;
-            align-items: center;
-        }
-        .painel-row { display: flex; flex-direction: column; }
-        .label { color: var(--text-dim); text-transform: uppercase; font-size: 9px; font-weight: 700; margin-bottom: 2px; }
-        .valor { color: #fff; font-weight: 600; font-size: 12px; white-space: nowrap; }
-        .status-badge { padding: 3px 8px; border-radius: 20px; font-size: 10px; font-weight: 800; }
-        .status-livre { background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3); }
-        .status-ocupado { background: rgba(239, 68, 68, 0.2); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3); }
-        .btn-finalizar{
-            background:#facc15;
-            color:#000;
-            border:none;
-            padding:10px 18px;
-            border-radius:10px;
-            font-weight:800;
-            font-size:13px;
-            cursor:pointer;
-            white-space:nowrap;
-            transition:.3s;
-        }
-        .btn-finalizar:hover{
-            background:#fde047;
-            transform:scale(1.05);
-        }
-        .controles { display: flex; flex-direction: column; align-items: flex-end; gap: 5px; min-width: 220px; }
-        #fullscreenIndicator {
-            background: var(--accent); color: white; padding: 2px 10px;
-            border-radius: 6px; font-size: 9px; font-weight: 800;
-            display: none; animation: pulse 2s infinite;
-        }
-        .timer-row { display: flex; align-items: center; gap: 12px; }
-        #timer { font-family: monospace; font-size: 28px; font-weight: 800; color: var(--accent); }
-        button { padding: 6px 12px; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 12px; transition: 0.3s; }
-        .btn-primary { background: var(--primary); color: white; width: 100%; margin-top: 5px; }
-        .btn-outline { background: transparent; border: 1px solid var(--border); color: white; }
-        .btn-outline:hover { background: var(--border); }
-        #btnIniciarProva {
-            display: none;
-            position: fixed; top: 75%; left: 50%; transform: translate(-50%, -50%);
-            padding: 30px 60px; font-size: 24px; background: var(--accent);
-            color: white; border-radius: 20px; box-shadow: 0 0 50px rgba(16, 185, 129, 0.4);
-            z-index: 3000; animation: bounce 2s infinite;
-        }
-        @keyframes bounce {
-            0%, 100% { transform: translate(-50%, -50%) scale(1); }
-            50% { transform: translate(-50%, -50%) scale(1.05); }
-        }
-        #manualArea {
-            position: absolute; top: 100px; right: 20px;
-            background: #1e293b; padding: 15px; border-radius: 12px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5); border: 1px solid var(--primary);
-            display: none; flex-direction: column; gap: 8px; z-index: 2100;
-        }
-        input {
-            padding: 10px; border-radius: 6px; border: 1px solid var(--border);
-            background: #0f172a; color: white; width: 220px;
-        }
-        .conteudo { position: fixed; top: 95px; bottom: 35px; width: 100%; background: #000; }
-        iframe { width: 100%; height: 100%; border: none; }
-        #identificacaoAluno {
-            position:absolute;
-            top:35%;
-            left:50%;
-            transform:translate(-50%,-50%);
-            text-align:center;
-            z-index:1000;
-            color:white;
-            font-weight:900;
-            font-size:60px;
-            text-shadow:0 0 20px rgba(255,255,255,.4);
-            pointer-events:none;
-        }
-        #identificacaoAluno .nome{
-            font-size:72px;
-            color:#60a5fa;
-        }
-        #identificacaoAluno .subtitulo{
-            font-size:28px;
-            color:#94a3b8;
-            margin-top:15px;
-        }
-        .footer {
-            position: fixed; bottom: 0; width: 100%; height: 35px;
-            background: #0f172a; font-size: 11px; display: flex;
-            align-items: center; justify-content: space-between; padding: 0 25px;
-            border-top: 1px solid var(--border); color: var(--text-dim);
-        }
-        .violation-alert {
-            position: fixed; inset: 0; background: rgba(0,0,0,0.98);
-            z-index: 5000; display: none; align-items: center; justify-content: center;
-        }
-        .alert-card {
-            background: #1e1e1e; border: 2px solid var(--danger);
-            padding: 30px; border-radius: 20px; text-align: center;
-        }
-        .progress-bar {
-            height: 5px; background: var(--danger); width: 0%;
-            transition: width 0.1s linear; margin: 15px 0;
-        }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Mapa Lab — LEI</title>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&family=JetBrains+Mono:wght@700&display=swap" rel="stylesheet">
+
+<!-- Áudio MP3 -->
+<audio id="audio-livre" src="audio1.mp3" preload="auto"></audio>
+
+<style>
+*{ box-sizing:border-box; margin:0; padding:0; }
+
+:root{
+  --bg:         #0d1117;
+  --surface:      #161b22;
+  --border:       #30363d;
+  --text:         #009dff;
+  --muted:        #8b949e;
+  --livre-bg:     #0dff00;
+  --livre-glow:   rgba(22,163,74,0.55);
+  --ocupado-bg:   #ff0000;
+  --ocupado-glow: rgba(185,28,28,0.35);
+  --accent:       #2563eb;
+}
+
+html, body {
+  height: 100%;
+  height: 100dvh;
+  overflow: hidden;
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Inter', system-ui, sans-serif;
+}
+
+body {
+  display: flex;
+  flex-direction: column;
+}
+
+header{
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  z-index: 10;
+  gap: 12px;
+}
+
+.h-escola{
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.h-escola-icon{
+  font-size: 20px;
+  color: var(--accent);
+  flex-shrink: 0;
+}
+
+.h-escola-nome{
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--text);
+  letter-spacing: 0.3px;
+  line-height: 1.1;
+}
+
+.h-escola-sub{
+  font-size: 10px;
+  color: var(--muted);
+  margin-top: 1px;
+}
+
+.h-sep{
+  width: 1px;
+  height: 32px;
+  background: var(--border);
+  flex-shrink: 0;
+}
+
+.h-lei{
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.h-lei-icon{
+  font-size: 16px;
+  color: #4ade80;
+}
+
+.h-lei-label{
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+  font-weight: 700;
+  color: #4ade80;
+  letter-spacing: 1px;
+}
+
+.h-lei-desc{
+  font-size: 9px;
+  color: var(--muted);
+  margin-top: 1px;
+  letter-spacing: 0.3px;
+}
+
+.h-dev{
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 5px 10px;
+}
+
+.h-dev-icon{
+  font-size: 13px;
+  color: #6366f1;
+}
+
+.h-dev-text{
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.h-dev-text b{
+  color: var(--text);
+  font-weight: 700;
+}
+
+.btn-back{
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--muted);
+  padding: 6px 10px;
+  border-radius: 7px;
+  cursor: pointer;
+  font-size: 12px;
+  font-family: 'Inter', sans-serif;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  transition: all 0.2s;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.btn-back:hover{ border-color:var(--text); color:var(--text); }
+
+.statusbar{
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 6px 16px;
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+}
+
+.legend-item{
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+}
+
+.legend-dot{
+  width: 8px; height: 8px;
+  border-radius: 50%;
+}
+
+.legend-dot.livre   { background: var(--livre-bg); }
+.legend-dot.ocupado { background: var(--ocupado-bg); }
+
+#contadores{
+  margin-left: auto;
+  display: flex;
+  gap: 14px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.count-livre   { color: #00ff44; font-weight: 700; }
+.count-ocupado { color: #ff0000; font-weight: 700; }
+
+#grid-wrap{
+  flex: 1;
+  overflow: hidden;
+  padding: 10px 12px;
+}
+
+.grid{
+  display: grid;
+  width: 100%;
+  height: 100%;
+  gap: 10px;
+}
+
+.pc{
+  border-radius: 12px;
+  padding: 0;
+  text-align: center;
+  border: 2px solid var(--border);
+  background: var(--surface);
+  position: relative;
+  transition: transform 0.2s, box-shadow 0.2s, background 0.3s, border-color 0.3s;
+  cursor: default;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  overflow: hidden;
+  min-height: 0;
+}
+
+.pc.livre{
+  background: var(--livre-bg);
+  border-color: #15803d;
+  box-shadow: 0 0 16px var(--livre-glow);
+  animation: pulse-livre 1.6s ease-in-out infinite;
+}
+
+.pc.livre:hover{
+  transform: scale(1.03);
+  box-shadow: 0 0 28px var(--livre-glow);
+}
+
+@keyframes pulse-livre{
+  0%,100%{ box-shadow: 0 0 14px var(--livre-glow); }
+  50%    { box-shadow: 0 0 30px rgba(22,163,74,0.8); }
+}
+
+.pc.ocupado{
+  background: var(--ocupado-bg);
+  border-color: #991b1b;
+  box-shadow: 0 0 10px var(--ocupado-glow);
+  opacity: 0.85;
+}
+
+.pc.ocupado:hover{ opacity:1; transform:scale(1.02); }
+
+.pc-icon{
+  font-size: clamp(13px, 2vmin, 20px);
+  color: rgba(78, 26, 26, 0.85);
+}
+
+.pc-nome{
+  font-family: 'JetBrains Mono', monospace;
+  font-size: clamp(13px, 2.2vmin, 20px);
+  font-weight: 700;
+  color: #000000;
+  letter-spacing: 0.3px;
+  line-height: 1;
+}
+
+.status{
+  font-size: clamp(10px, 1.4vmin, 14px);
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  padding: 2px 8px;
+  border-radius: 20px;
+  background: rgba(0,0,0,0.2);
+  color: rgba(0, 0, 0, 0.9);
+  line-height: 1.4;
+}
+
+.pc-aluno{
+  font-size: clamp(13px, 1.2vmin, 15px);
+  font-weight: bold;
+  color: rgba(255, 255, 255, 0.7);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 92%;
+  line-height: 1;
+}
+
+.pc-turma{
+  font-size: clamp(14px, 1.8vmin, 18px);
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  opacity: 0.7;
+  color: #000000;
+  text-transform: uppercase;
+  line-height: 1;
+}
+
+.pc-x{
+  position: absolute;
+  top: 6px; right: 7px;
+  font-size: clamp(10px, 1.2vmin, 13px);
+  color: rgba(0, 0, 0, 0.45);
+  display: none;
+}
+
+.pc.ocupado .pc-x{ display:block; }
+
+#beep-banner{
+  display: none;
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--livre-bg);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 10px 22px;
+  border-radius: 40px;
+  box-shadow: 0 0 24px var(--livre-glow);
+  z-index: 100;
+  animation: fadeBanner 0.25s ease;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+}
+
+@keyframes fadeBanner{
+  from{ opacity:0; transform:translateX(-50%) translateY(8px); }
+  to  { opacity:1; transform:translateX(-50%) translateY(0); }
+}
+
+/* Mensagem de erro */
+#erro-msg {
+  display: none;
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(255, 0, 0, 0.9);
+  color: white;
+  padding: 20px 30px;
+  border-radius: 10px;
+  z-index: 1000;
+  text-align: center;
+  max-width: 80%;
+}
+
+#erro-msg h3 {
+  margin-bottom: 10px;
+}
+
+#erro-msg p {
+  font-size: 13px;
+  margin-top: 5px;
+}
+
+@media (max-width: 600px){
+  html, body { overflow: hidden; }
+  #grid-wrap{
+    overflow-x: hidden;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .grid{
+    height: auto !important;
+  }
+  .pc{
+    min-height: 70px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce){
+  .pc.livre{ animation:none; }
+  #beep-banner{ animation:none; }
+}
+</style>
 </head>
 <body>
 
-<button id="btnIniciarProva" onclick="confirmarInicio()">🚀 INICIAR PROVA</button>
+<header>
+  <div class="h-escola">
+    <i class="fas fa-school h-escola-icon"></i>
+    <div>
+      <div class="h-escola-nome">EEMTI DRAGÃO DO MAR</div>
+      <div class="h-escola-sub">By D.S.MONTENEGRO</div>
+    </div>
+  </div>
 
-<div class="topo">
-    <div class="esquerda">
-        <img src="imagem1.png" class="logo" alt="Logo">
-        <div id="painelAluno"></div>
+  <div class="h-sep"></div>
+
+  <div class="h-lei">
+    <i class="fas fa-laptop h-lei-icon"></i>
+    <div>
+      <div class="h-lei-label">L.E.I.</div>
+      <div class="h-lei-desc">Lab. de Educação e Informática</div>
     </div>
-    <div class="controles">
-        <div id="fullscreenIndicator">🖥️ AMBIENTE PROTEGIDO ATIVO</div>
-        <div class="timer-row">
-            <div id="timer">40:00</div>
-            <div class="botoes-acao">
-                <button class="btn-outline" onclick="alternarModo()">🔍</button>
-            </div>
-        </div>
-    </div>
-    <div id="manualArea">
-        <input id="matricula" placeholder="Aguardando Leitura..." onkeydown="if(event.key==='Enter'){event.preventDefault(); iniciarManual();}">
-        <button class="btn-primary" onclick="iniciarManual()">LIBERAR PC</button>
-    </div>
+  </div>
+
+  <div class="h-dev">
+    <i class="fas fa-code h-dev-icon"></i>
+    <div class="h-dev-text">by <b>D.S.Montenegro</b></div>
+  </div>
+
+  <button class="btn-back" onclick="voltar()">
+    <i class="fas fa-arrow-left"></i> Voltar
+  </button>
+</header>
+
+<div class="statusbar">
+  <div class="legend-item"><span class="legend-dot livre"></span> Livre</div>
+  <div class="legend-item"><span class="legend-dot ocupado"></span> Ocupado</div>
+  <div id="contadores">
+    <span>Livres: <span class="count-livre" id="cnt-livre">0</span></span>
+    <span>Ocupados: <span class="count-ocupado" id="cnt-ocupado">0</span></span>
+  </div>
 </div>
 
-<div class="conteudo">
-    <div id="identificacaoAluno">
-        AGUARDANDO ALUNO
-    </div>
-    <iframe id="frame"></iframe>
+<div id="grid-wrap">
+  <div class="grid" id="grid"></div>
 </div>
 
-<div class="footer">
-    <div>🏫 EEMTI DRAGÃO DO MAR</div>
-    <div>PC: <strong id="pcNome" style="color: var(--primary-light)">-</strong></div>
-    <div>⚡ By D.S.Montenegro</div>
-</div>
+<div id="beep-banner">🔔 PC LIVRE — atenção!</div>
 
-<div class="violation-alert" id="violationAlert">
-    <div class="alert-card">
-        <h1 style="color: var(--danger); font-size: 40px;">⚠️</h1>
-        <h3 style="margin: 10px 0">VIOLAÇÃO DETECTADA</h3>
-        <div style="width: 200px; background: #333; border-radius: 3px;">
-            <div class="progress-bar" id="progressFill"></div>
-        </div>
-        <div style="font-weight: bold;"><span id="countdown">5</span>s</div>
-    </div>
+<div id="erro-msg">
+  <h3>⚠️ Erro ao carregar PCs</h3>
+  <p id="erro-texto"></p>
 </div>
 
 <script>
-const SUPABASE_URL = "https://fwemutmkbvnriqxxufhx.supabase.co";
-const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ3ZW11dG1rYnZucmlxeHh1Zmh4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMxNjM2MzMsImV4cCI6MjA4ODczOTYzM30.HCXIoI_r7_yGJntTPIizhrP4apxXV3Ahd6Jk2AkvKas";
-const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-const params = new URLSearchParams(window.location.search);
-const nomePC = params.get("pc") || "PC1";
-document.getElementById("pcNome").textContent = nomePC;
+const client = supabase.createClient(
+  "https://fwemutmkbvnriqxxufhx.supabase.co",
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ3ZW11dG1rYnZucmlxeHh1Zmh4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMxNjM2MzMsImV4cCI6MjA4ODczOTYzM30.HCXIoI_r7_yGJntTPIizhrP4apxXV3Ahd6Jk2AkvKas"
+)
 
-const provas = {
-   // 1º ANO
-        DMAR1MAT2:"https://docs.google.com/forms/d/e/1FAIpQLSetvIVYIZzy3S0XtFI2kdU57wdhZcqRFcDvFhMpK_qaY6Oh5Q/viewform?embedded=true",
-        DMAR1NAT2:"https://docs.google.com/forms/d/e/1FAIpQLSf-egYvhpzjokxihs6xaWaPSPrUfqgOqF4GEaBDQomwOE-9KQ/viewform?embedded=true",
-        DMAR1HUM2:"   ",
-        DMAR1LIN2:"https://docs.google.com/forms/d/e/1FAIpQLSdW-1Ovew57ft-ZyANhOY9rCW_33RcefgmBhBKKf8Cbqq1SGw/viewform?embedded=true",
+const estadoAnterior = {}
+let totalPcs = 0
 
-        DMAR1MAT2N:"https://docs.google.com/forms/d/e/1FAIpQLSfrQbnYGyiHvzweRxGZ4UYSdjcfwPADu23gL-8DMswOuO4Dyw/viewform?embedded=true",
-        DMAR1NAT2N:"https://docs.google.com/forms/d/e/1FAIpQLSdm93HocoUj0d0l_7Rc47ohE18UihyG4aIQSal2ct2FZanb8g/viewform?embedded=true",
-        DMAR1HUM2N:"  ",
-        DMAR1LIN2N:"https://docs.google.com/forms/d/e/1FAIpQLScWkeeT8z2vVwj5jNsgc7GJ9h12brNRbY7LbIoD7NqzHo0mSw/viewform?embedded=true",
-
-        // 2º ANO
-        DMAR2MAT2:"https://docs.google.com/forms/d/e/1FAIpQLSdHHrOo5MzNwxV5fjz13UMbFM79fz6HmpmSIXER2QRq0nP6yQ/viewform?embedded=true",
-        DMAR2NAT2:"https://docs.google.com/forms/d/e/1FAIpQLSf75tQPAt5xnnRLtQO3crCgFK8QyrpwE8ioay-9QbDg7xPR_g/viewform?embedded=true",
-        DMAR2HUM2:"   ",
-        DMAR2LIN1:"https://docs.google.com/forms/d/e/1FAIpQLScWB4GIyXL2gImCdlWnJDuu02Cpuz3bseQAMxsaGD4EUVb9zg/viewform?embedded=true",
-
-        DMAR2MAT2N:"https://docs.google.com/forms/d/e/1FAIpQLSfhGnRq3yIurfjHeGOnSaqnrIrQD0cvztd5PlrFl0EtC-pgkQ/viewform?embedded=true",
-        DMAR2NAT2N:"https://docs.google.com/forms/d/e/1FAIpQLSczaU6HYVRt9SE3bbr42LRRtUjfOtKAtbOz6IK3WArgA64OIQ/viewform?embedded=true",
-        DMAR2HUM2N:"  ",
-        DMAR2LIN2N:"https://docs.google.com/forms/d/e/1FAIpQLSfAmuG7s9J0s0p6HnfYj4DdPDfS2l2W7U8PKwIpB2aJg8knTA/viewform?embedded=true",
-
-        // 3º ANO
-        DMAR3MAT2:"https://docs.google.com/forms/d/e/1FAIpQLScLy71a7GtpBubL6XaXCcBTZ5jT5sOA4BRpXJGc29c54VSWTA/viewform?embedded=true",
-        DMAR3NAT2:"https://docs.google.com/forms/d/e/1FAIpQLSfcaW2zas4fF-jP4ytspmozQ6OdatCMsVFgturSUY9REDLwOA/viewform?embedded=true",
-        DMAR3HUM2:"  ",
-        DMAR3LIN1:"https://docs.google.com/forms/d/e/1FAIpQLScWB4GIyXL2gImCdlWnJDuu02Cpuz3bseQAMxsaGD4EUVb9zg/viewform?embedded=true",
-
-        DMAR3MAT2N:"https://docs.google.com/forms/d/e/1FAIpQLSc4ZczxH_FkrjFeW_Puc6PnwWWwhryH_0JVenytV8tKHqnZhA/viewform?embedded=true",
-        DMAR3NAT2N:"https://docs.google.com/forms/d/e/1FAIpQLSeNOxgBiXGeYQRs1mQwgSmKnhehKq2etgEzXlcu0xEEA85DrQ/viewform?embedded=true",
-        DMAR3HUM2N:"  ",
-        DMAR3LIN2N:"https://docs.google.com/forms/d/e/1FAIpQLSfczBxiEOSGWb3x5GfuaVWFpirCFCC3e6_m13v8-UU9SUdXxQ/viewform?embedded=true"
-};
-
-let monitoramentoAtivo = true;
-let alunoAtual = null;
-let areaAtual = null;
-let intervalo = null;
-let tempo = 2400;
-
-function inicial() {
-    document.getElementById("painelAluno").innerHTML = `
-        <div class="painel-row"><span class="label">Aluno</span><span class="valor">-</span></div>
-        <div class="painel-row"><span class="label">E-mail</span><span class="valor">-</span></div>
-        <div class="painel-row"><span class="label">Série</span><span class="valor">-</span></div>
-        <div class="painel-row"><span class="label">Matrícula</span><span class="valor">-</span></div>
-        <div class="painel-row"><span class="label">Prova</span><span class="valor">-</span></div>
-        <div class="painel-row"><span class="label">Status</span><span class="status-badge status-livre">LIVRE</span></div>`;
-    document.getElementById("identificacaoAluno").innerHTML = `
-        <div>AGUARDANDO ALUNO</div>
-        <div class="subtitulo">${nomePC}</div>
-    `;
-    document.getElementById("identificacaoAluno").style.display = "block";
-}
-
-async function verificarStatus() {
-    if (!monitoramentoAtivo) return;
-    const { data, error } = await client.from("provas_terminais").select("status, aluno_id").eq("nome", nomePC).single();
-    if (error || !data) return;
-
-    if (data.status === "ocupado" && data.aluno_id) {
-        const { data: aluno } = await client.from("provas_alunos").select("*").eq("id", data.aluno_id).single();
-        if (aluno) {
-            const { data: agendas } = await client.from("provas_agenda").select("*");
-            const hoje = new Date().toLocaleDateString('en-CA');
-            const turma = String(aluno.turma || "").trim().toUpperCase();
-            const modalidade = (turma === "1D" || turma === "2D" || turma === "3C") ? "NOTURNO" : "INTEGRAL";
-            const agenda = (agendas || []).find(a => a.data && String(a.data).includes(hoje) && a.modalidade === modalidade);
-
-            alunoAtual = aluno;
-            areaAtual = agenda ? String(agenda.area || "").trim().toUpperCase() : "";
-            carregarAluno(aluno, agenda ? agenda.area : "Não agendada");
-
-            document.getElementById("identificacaoAluno").innerHTML = `
-                <div class="nome">${aluno.nome}</div>
-                <div class="subtitulo">${nomePC}</div>
-            `;
-            document.getElementById("identificacaoAluno").style.display = "block";
-            document.getElementById("btnIniciarProva").style.display = "block";
-        }
-    } else {
-        document.getElementById("btnIniciarProva").style.display = "none";
-        inicial();
+function tocarBeep(){
+  try{
+    const audio = document.getElementById('audio-livre')
+    if(audio){
+      audio.currentTime = 0
+      audio.play()
     }
+  }catch(e){}
 }
 
-setInterval(verificarStatus, 2000);
-
-function getSerieCodigo(turma) {
-    const t = String(turma || "").trim().toUpperCase();
-    if (["1A","1B","1C","1D"].includes(t)) return "1";
-    if (["2A","2B","2C","2D"].includes(t)) return "2";
-    if (["3A","3B","3C","3D"].includes(t)) return "3";
-    return t.charAt(0);
+let bannerTimer = null
+function mostrarBanner(nomePc){
+  const b = document.getElementById('beep-banner')
+  b.textContent = `🔔 ${nomePc} LIVRE — atenção!`
+  b.style.display = 'block'
+  clearTimeout(bannerTimer)
+  bannerTimer = setTimeout(() => { b.style.display = 'none' }, 3500)
 }
 
-function confirmarInicio() {
-    if (!alunoAtual) return;
+function getTurma(pcNome){
+  const n = parseInt(pcNome.replace("PC",""))
+  if(n % 3 === 1) return "1º ANO"
+  if(n % 3 === 2) return "2º ANO"
+  return "3º ANO"
+}
 
-    const turma = String(alunoAtual.turma || "").trim().toUpperCase();
-    const ehNoturno = turma === "1D" || turma === "2D" || turma === "3C";
-    const serieCodigo = getSerieCodigo(turma);
-    const codigo = "DMAR" + serieCodigo + areaAtual + (ehNoturno ? "N" : "");
-    const link = provas[codigo];
+function ajustarGrid(){
+  if(!totalPcs) return
+  const isMobile = window.innerWidth <= 600
+  const grid = document.getElementById('grid')
 
-    if (!link || !String(link).trim()) {
-        alert(`❌ Prova não disponível para a turma ${turma} na área ${areaAtual || "desconhecida"}!`);
-        return;
+  if(isMobile){
+    grid.style.gridTemplateColumns = 'repeat(3, 1fr)'
+    grid.style.gridTemplateRows   = ''
+    grid.style.height          = 'auto'
+    return
+  }
+
+  const wrap   = document.getElementById('grid-wrap')
+  const W      = wrap.clientWidth  - 24
+  const H      = wrap.clientHeight - 20
+  const gap    = 10
+  const n      = totalPcs
+
+  let bestCols = 1, bestScore = 0
+  for(let cols = 1; cols <= n; cols++){
+    const rows  = Math.ceil(n / cols)
+    const cardW = (W - gap*(cols-1)) / cols
+    const cardH = (H - gap*(rows-1)) / rows
+    if(cardW < 80 || cardH < 50) continue
+    const ratio = cardW / cardH
+    const area  = cardW * cardH
+    const score = area * Math.min(ratio, 2.5)
+    if(score > bestScore){ bestScore = score; bestCols = cols }
+  }
+
+  const bestRows = Math.ceil(n / bestCols)
+  grid.style.gridTemplateColumns = `repeat(${bestCols}, 1fr)`
+  grid.style.gridTemplateRows    = `repeat(${bestRows}, 1fr)`
+  grid.style.height              = '100%'
+}
+
+async function inicializar(){
+  try {
+    console.log('🔍 Buscando PCs na tabela provas_terminais...')
+    const { data: pcs, error } = await client.from("provas_terminais").select("nome")
+    
+    if(error) {
+      console.error('❌ Erro da Supabase:', error)
+      mostrarErro(error.message)
+      return
+    }
+    
+    if(!pcs || pcs.length === 0) {
+      console.error('❌ Nenhum PC encontrado na tabela')
+      mostrarErro('Nenhum PC encontrado na tabela "provas_terminais"')
+      return
     }
 
-    monitoramentoAtivo = false;
-    document.getElementById("btnIniciarProva").style.display = "none";
-    document.getElementById("identificacaoAluno").style.display = "none";
-    document.getElementById("frame").src = link;
-    iniciarTimer();
-    setTimeout(entrarFullscreen, 500);
+    console.log(`✅ PCs encontrados: ${pcs.length}`, pcs)
+    
+    pcs.sort((a,b) => parseInt(a.nome.replace("PC","")) - parseInt(b.nome.replace("PC","")))
+    totalPcs = pcs.length
+
+    const grid = document.getElementById("grid")
+    grid.innerHTML = ''
+
+    pcs.forEach(pc => {
+      estadoAnterior[pc.nome] = null
+      grid.innerHTML += `
+        <div class="pc" id="card-${pc.nome}">
+          <div class="pc-x"><i class="fas fa-circle-xmark"></i></div>
+          <i class="fas fa-desktop pc-icon"></i>
+          <div class="pc-nome">${pc.nome}</div>
+          <div class="status" id="status-${pc.nome}">—</div>
+          <div class="pc-aluno" id="aluno-${pc.nome}">—</div>
+          <div class="pc-turma">${getTurma(pc.nome)}</div>
+        </div>`
+    })
+
+    console.log(`✅ ${totalPcs} PCs criados no grid`)
+    ajustarGrid()
+    atualizar()
+  } catch(e) {
+    console.error('❌ Erro na inicialização:', e)
+    mostrarErro(e.message)
+  }
 }
 
-function carregarAluno(aluno, area) {
-    document.getElementById("painelAluno").innerHTML = `
-        <div class="painel-row"><span class="label">Aluno</span><span class="valor">${aluno.nome}</span></div>
-        <div class="painel-row"><span class="label">E-mail</span><span class="valor">${aluno.email || '-'}</span></div>
-        <div class="painel-row"><span class="label">Série</span><span class="valor">${aluno.turma}</span></div>
-        <div class="painel-row"><span class="label">Matrícula</span><span class="valor">${aluno.matricula}</span></div>
-        <div class="painel-row"><span class="label">Prova</span><span class="valor">${area}</span></div>
-        <div class="painel-row"><span class="label">Status</span><span class="status-badge status-ocupado">LIBERADO</span></div>
-        <div class="painel-row"><button class="btn-finalizar" onclick="nova()">🏁 FINALIZAR PROVA</button></div>`;
-}
+async function atualizar(){
+  try {
+    const { data: pcs, error } = await client.from("provas_terminais").select("*")
+    
+    if(error) {
+      console.error('❌ Erro no atualizar:', error)
+      return
+    }
+    
+    let livres = 0, ocupados = 0
 
-async function iniciarManual() {
-    const input = document.getElementById("matricula");
-    const mat = input.value.trim();
-    if (!mat) return;
+    for(let pc of pcs){
+      const card   = document.getElementById(`card-${pc.nome}`)
+      const status = document.getElementById(`status-${pc.nome}`)
+      const aluno  = document.getElementById(`aluno-${pc.nome}`)
+      if(!card) continue
 
-    const { data: aluno } = await client.from("provas_alunos").select("*").eq("matricula", mat).single();
-    if (!aluno) {
-        alert("Aluno não encontrado");
-        return;
+      const anterior = estadoAnterior[pc.nome]
+      if(anterior !== null && anterior !== "livre" && pc.status === "livre"){
+        tocarBeep()
+        mostrarBanner(pc.nome)
+      }
+      estadoAnterior[pc.nome] = pc.status
+
+      card.classList.remove("livre","ocupado")
+      card.classList.add(pc.status)
+      status.textContent = pc.status === "livre" ? "LIVRE" : "OCUPADO"
+
+      if(pc.aluno_id){
+        const { data: a } = await client.from("provas_alunos").select("nome").eq("id",pc.aluno_id).single()
+        aluno.textContent = a ? a.nome : "—"
+      }else{
+        aluno.textContent = "—"
+      }
+
+      if(pc.status === "livre") livres++
+      else ocupados++
     }
 
-    await client.from("provas_terminais").update({status:"ocupado", aluno_id:aluno.id}).eq("nome", nomePC);
-    input.value = "";
-    alternarModo();
+    document.getElementById("cnt-livre").textContent   = livres
+    document.getElementById("cnt-ocupado").textContent = ocupados
+  } catch(e) {
+    console.error('❌ Erro no atualizar:', e)
+  }
 }
 
-function iniciarTimer() {
-    tempo = 2400;
-    clearInterval(intervalo);
-    document.getElementById("timer").innerText = "40:00";
-
-    intervalo = setInterval(() => {
-        tempo--;
-        let min = Math.floor(tempo/60), seg = tempo%60;
-        document.getElementById("timer").innerText = String(min).padStart(2,'0')+":"+String(seg).padStart(2,'0');
-        if (tempo <= 0) clearInterval(intervalo);
-    }, 1000);
+function mostrarErro(msg) {
+  const el = document.getElementById('erro-msg')
+  const txt = document.getElementById('erro-texto')
+  txt.textContent = msg
+  el.style.display = 'block'
 }
 
-function alternarModo() {
-    const area = document.getElementById("manualArea");
-    const input = document.getElementById("matricula");
-    area.style.display = area.style.display === "none" ? "flex" : "none";
-    if (area.style.display === "flex") setTimeout(() => input.focus(), 200);
-}
+function voltar(){ window.location.href = " " }
 
-async function nova() {
-    if (!confirm("Deseja realmente finalizar a prova e liberar este computador?")) return;
-    monitoramentoAtivo = true;
-    clearInterval(intervalo);
+inicializar()
+setInterval(atualizar, 3000)
+window.addEventListener('resize', ajustarGrid)
 
-    await client.from("provas_terminais").update({status:"livre", aluno_id:null}).eq("nome", nomePC);
-    location.reload();
-}
-
-async function entrarFullscreen() {
-    const elem = document.documentElement;
-    if (elem.requestFullscreen) elem.requestFullscreen();
-    document.getElementById("fullscreenIndicator").style.display = "block";
-}
-
-function mostrarViolacao() {
-    const alert = document.getElementById("violationAlert");
-    if (alert.style.display === "flex" || monitoramentoAtivo) return;
-
-    alert.style.display = "flex";
-    let tempoV = 5, progresso = 0;
-
-    const pInt = setInterval(() => {
-        progresso += 2;
-        document.getElementById("progressFill").style.width = progresso + "%";
-        if (progresso >= 100) {
-            clearInterval(pInt);
-            alert.style.display = "none";
-            entrarFullscreen();
-        }
-    }, 100);
-
-    const cInt = setInterval(() => {
-        tempoV--;
-        document.getElementById("countdown").textContent = Math.max(0, tempoV);
-        if (tempoV <= 0) clearInterval(cInt);
-    }, 1000);
-}
-
-document.addEventListener('fullscreenchange', () => !document.fullscreenElement && mostrarViolacao());
-document.addEventListener('visibilitychange', () => document.visibilityState === 'hidden' && mostrarViolacao());
-document.addEventListener('keydown', e => {
-    if (e.key === 'F11' || e.key === 'Escape' || (e.ctrlKey && e.key === 'n')) {
-        e.preventDefault();
-        mostrarViolacao();
-    }
-});
-
-window.addEventListener('load', () => {
-    inicial();
-    verificarStatus();
-});
 </script>
 </body>
 </html>
